@@ -3,9 +3,11 @@
 // found in the LICENSE file.
 
 #import "FirebaseMlVisionPlugin.h"
+#import <FirebaseMLVision/FirebaseMLVision.h>
 
 @interface TextRecognizer ()
 @property FIRVisionTextRecognizer *recognizer;
+@property FIRVisionCloudTextRecognizerOptions *options;
 @end
 
 @implementation TextRecognizer
@@ -15,7 +17,10 @@
     if ([@"onDevice" isEqualToString:options[@"modelType"]]) {
       _recognizer = [vision onDeviceTextRecognizer];
     } else if ([@"cloud" isEqualToString:options[@"modelType"]]) {
-      _recognizer = [vision cloudTextRecognizer];
+        _options = [[FIRVisionCloudTextRecognizerOptions alloc] init];
+        _options.modelType = FIRVisionCloudTextModelTypeDense;
+        _recognizer = [vision cloudTextRecognizerWithOptions:_options];
+        
     } else {
       NSString *reason =
           [NSString stringWithFormat:@"Invalid model type: %@", options[@"modelType"]];

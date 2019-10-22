@@ -13,6 +13,7 @@ import com.google.firebase.ml.vision.FirebaseVision;
 import com.google.firebase.ml.vision.common.FirebaseVisionImage;
 import com.google.firebase.ml.vision.text.FirebaseVisionText;
 import com.google.firebase.ml.vision.text.FirebaseVisionTextRecognizer;
+import com.google.firebase.ml.vision.text.FirebaseVisionCloudTextRecognizerOptions;
 import com.google.firebase.ml.vision.text.RecognizedLanguage;
 import io.flutter.plugin.common.MethodChannel;
 import java.io.IOException;
@@ -29,7 +30,9 @@ public class TextRecognizer implements Detector {
     if (modelType.equals("onDevice")) {
       recognizer = vision.getOnDeviceTextRecognizer();
     } else if (modelType.equals("cloud")) {
-      recognizer = vision.getCloudTextRecognizer();
+      FirebaseVisionCloudTextRecognizerOptions.Builder builder = new FirebaseVisionCloudTextRecognizerOptions.Builder();
+      builder.setModelType(FirebaseVisionCloudTextRecognizerOptions.DENSE_MODEL);
+      recognizer = vision.getCloudTextRecognizer(builder.build());
     } else {
       final String message = String.format("No model for type: %s", modelType);
       throw new IllegalArgumentException(message);
