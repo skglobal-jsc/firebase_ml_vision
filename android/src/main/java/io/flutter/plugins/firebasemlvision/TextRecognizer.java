@@ -31,7 +31,7 @@ public class TextRecognizer implements Detector {
       recognizer = vision.getOnDeviceTextRecognizer();
     } else if (modelType.equals("cloud")) {
       FirebaseVisionCloudTextRecognizerOptions.Builder builder = new FirebaseVisionCloudTextRecognizerOptions.Builder();
-      builder.setModelType(FirebaseVisionCloudTextRecognizerOptions.DENSE_MODEL);
+      builder.setModelType(FirebaseVisionCloudTextRecognizerOptions.SPARSE_MODEL);
       recognizer = vision.getCloudTextRecognizer(builder.build());
     } else {
       final String message = String.format("No model for type: %s", modelType);
