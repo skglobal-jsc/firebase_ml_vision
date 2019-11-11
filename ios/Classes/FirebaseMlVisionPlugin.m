@@ -102,19 +102,89 @@ static NSMutableDictionary<NSNumber *, id<Detector>> *detectors;
 
 - (FIRVisionImage *)filePathToVisionImage:(NSString *)filePath {
   UIImage *image = [UIImage imageWithContentsOfFile:filePath];
+  UIImage *fixOrientationImage = [self fixOrientationForImage:image];
+  
+  return [[FIRVisionImage alloc] initWithImage:fixOrientationImage];
+}
 
-  if (image.imageOrientation != UIImageOrientationUp) {
-    CGImageRef imgRef = image.CGImage;
-    CGRect bounds = CGRectMake(0, 0, CGImageGetWidth(imgRef), CGImageGetHeight(imgRef));
-    UIGraphicsBeginImageContext(bounds.size);
-    CGContextDrawImage(UIGraphicsGetCurrentContext(), bounds, imgRef);
-    UIImage *newImage = UIGraphicsGetImageFromCurrentImageContext();
-    UIGraphicsEndImageContext();
+- (UIImage *)fixOrientationForImage:(UIImage*)neededImage {
 
-    image = newImage;
-  }
+    // No-op if the orientation is already correct
+    if (neededImage.imageOrientation == UIImageOrientationUp) return neededImage;
 
-  return [[FIRVisionImage alloc] initWithImage:image];
+    // We need to calculate the proper transformation to make the image upright.
+    // We do it in 2 steps: Rotate if Left/Right/Down, and then flip if Mirrored.
+    CGAffineTransform transform = CGAffineTransformIdentity;
+
+    switch (neededImage.imageOrientation) {
+        case UIImageOrientationDown:
+        case UIImageOrientationDownMirrored:
+            transform = CGAffineTransformTranslate(transform, neededImage.size.width, neededImage.size.height);
+            transform = CGAffineTransformRotate(transform, M_PI);
+            break;
+
+        case UIImageOrientationLeft:
+        case UIImageOrientationLeftMirrored:
+            transform = CGAffineTransformTranslate(transform, neededImage.size.width, 0);
+            transform = CGAffineTransformRotate(transform, M_PI_2);
+            break;
+
+        case UIImageOrientationRight:
+        case UIImageOrientationRightMirrored:
+            transform = CGAffineTransformTranslate(transform, 0, neededImage.size.height);
+            transform = CGAffineTransformRotate(transform, -M_PI_2);
+            break;
+        case UIImageOrientationUp:
+        case UIImageOrientationUpMirrored:
+            break;
+    }
+
+    switch (neededImage.imageOrientation) {
+        case UIImageOrientationUpMirrored:
+        case UIImageOrientationDownMirrored:
+            transform = CGAffineTransformTranslate(transform, neededImage.size.width, 0);
+            transform = CGAffineTransformScale(transform, -1, 1);
+            break;
+
+        case UIImageOrientationLeftMirrored:
+        case UIImageOrientationRightMirrored:
+            transform = CGAffineTransformTranslate(transform, neededImage.size.height, 0);
+            transform = CGAffineTransformScale(transform, -1, 1);
+            break;
+        case UIImageOrientationUp:
+        case UIImageOrientationDown:
+        case UIImageOrientationLeft:
+        case UIImageOrientationRight:
+            break;
+    }
+
+    // Now we draw the underlying CGImage into a new context, applying the transform
+    // calculated above.
+    CGContextRef ctx = CGBitmapContextCreate(NULL, neededImage.size.width, neededImage.size.height,
+                                             CGImageGetBitsPerComponent(neededImage.CGImage), 0,
+                                             CGImageGetColorSpace(neededImage.CGImage),
+                                             CGImageGetBitmapInfo(neededImage.CGImage));
+    CGContextConcatCTM(ctx, transform);
+    switch (neededImage.imageOrientation) {
+        case UIImageOrientationLeft:
+        case UIImageOrientationLeftMirrored:
+        case UIImageOrientationRight:
+        case UIImageOrientationRightMirrored:
+            // Grr...
+            CGContextDrawImage(ctx, CGRectMake(0,0,neededImage.size.height,neededImage.size.width), neededImage.CGImage);
+            break;
+
+        default:
+            CGContextDrawImage(ctx, CGRectMake(0,0,neededImage.size.width,neededImage.size.height), neededImage.CGImage);
+            break;
+    }
+
+    // And now we just create a new UIImage from the drawing context
+    CGImageRef cgimg = CGBitmapContextCreateImage(ctx);
+    UIImage *img = [UIImage imageWithCGImage:cgimg];
+    CGContextRelease(ctx);
+    CGImageRelease(cgimg);
+    return img;
 }
 
 - (FIRVisionImage *)bytesToVisionImage:(NSDictionary *)imageData {
